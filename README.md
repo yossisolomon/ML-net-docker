@@ -16,3 +16,24 @@ If the first option to the docker run command is a URL, hueristically determined
 
 ## Security Concerns
 Because this container can be use to download and run any executable from a given URL there are some security concerns as the downloaded executalbe could be malicious. As such please use caution when specifying a URL to download and run.
+
+## Docker Compose
+A sample docker-compose entry for this container
+```
+fabric:
+  image: ciena/mininet
+  container_name: fabric
+  privileged: true
+  stdin_open: true
+  tty: true
+  environment:
+    MININET_SCRIPT: http://networks.company.com/fabric.py
+    MININET_SCRIPT_OPTIONS: -switch_cnt 5
+  links:
+    - controller_1:primary_controller
+    - controller_2:backup_controller1
+    - controller_3:backup_controller2
+  labels:
+    org.onlabs.cord.name: fabric
+    org.onlabs.cord.type: fabric
+```
