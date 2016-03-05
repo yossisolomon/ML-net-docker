@@ -1,11 +1,12 @@
 FROM debian
-MAINTAINER David Bainbridge <dbainbri@ciena.com>
+MAINTAINER Yossi Solomon <yosisolomon@gmail.com>
 
 ENV DEBIAN_FRONTEND noninteractive
 
 ENV MININET_REPO git://github.com/mininet/mininet
 ENV MININET_INSTALLER ./mininet/util/install.sh
 ENV INSTALLER_SWITCHES -fbinptvwyx
+ENV MLNET_REPO git://github.com/yossisolomon/ML-net
 
 WORKDIR /tmp
 
@@ -27,11 +28,13 @@ RUN \
     openssh-client \
     patch \
     vim \
+    python-numpy \
+    python-sklearn \
 
-# Clone and install.
+# Clone and install mininet
     && git clone -b 2.2.1 $MININET_REPO \
 
-# A few changes to make the install script behave.
+# A few changes to make the mininet install script behave.
     && sed -e 's/sudo //g' \
     	-e 's/~\//\//g' \
     	-e 's/\(apt-get -y install\)/\1 --no-install-recommends --no-install-suggests/g' \
@@ -51,6 +54,12 @@ RUN \
 # Clean up packages.
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
+
+
+# Clone and install ML-net
+WORKDIR ~
+RUN git clone $MLNET_REPO
+
 
 # Create a start script to start OpenVSwitch
 COPY docker-entry-point /docker-entry-point
