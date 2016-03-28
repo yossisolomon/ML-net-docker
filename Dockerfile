@@ -1,14 +1,13 @@
-FROM debian
+FROM debian 
+# Based on ozzyjohnson/mininet
 MAINTAINER Yossi Solomon <yosisolomon@gmail.com>
 
-ENV DEBIAN_FRONTEND noninteractive
+ENV DEBIAN_FRONTEND noninteractive 
 
-ENV MININET_REPO git://github.com/mininet/mininet
-ENV MININET_INSTALLER ./mininet/util/install.sh
-ENV INSTALLER_SWITCHES -fbinptvwyx
-ENV MLNET_REPO git://github.com/yossisolomon/ML-net
+ENV MININET_REPO https://github.com/mininet/mininet.git 
+ENV MININET_INSTALLER mininet/util/install.sh 
 
-WORKDIR /tmp
+ENV MLNET_REPO http://github.com/yossisolomon/ML-net
 
 # Update and install minimal.
 RUN \
@@ -18,55 +17,76 @@ RUN \
         --yes \
         --no-install-recommends \
         --no-install-suggests \
+    git \
     autoconf \
     automake \
     ca-certificates \
-    git \
-    curl \
     libtool \
     net-tools \
-    openssh-client \
     patch \
     vim \
+    g++ \
+    openssh-server \
+    openssh-client \
+    bc \
+    unzip \
+    wget \
     python-numpy \
     python-sklearn \
+    python-netaddr \
+    sudo \
+    libsctp-dev \
 
-# Clone and install mininet
-    && git clone -b 2.2.1 $MININET_REPO \
-
-# A few changes to make the mininet install script behave.
-    && sed -e 's/sudo //g' \
-    	-e 's/~\//\//g' \
-    	-e 's/\(apt-get -y install\)/\1 --no-install-recommends --no-install-suggests/g' \
-    	-i $MININET_INSTALLER \
-
-# Install script expects to find this. Easier than patching that part of the script.
-    && touch /.bashrc \
-
-# Proceed with the install.
-    && chmod +x $MININET_INSTALLER \
-    && ./$MININET_INSTALLER -nfv \
-
-# Clean up source.
-    && rm -rf /tmp/mininet \
-              /tmp/openflow \
 
 # Clean up packages.
     && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
 
+WORKDIR /tmp
+
+# install mininet
+RUN git clone $MININET_REPO \ 
+# A few changes to make the install script behave. 
+    && sed -e 's/sudo //g' \ 
+    -e 's/~\//\//g' \ 
+    -e 's/DEBIAN_FRONTEND=noninteractive//g' \
+    -e 's/git:/http:/g' \
+    -e 's/\(apt-get -y -q install\)/\1 --no-install-recommends --no-install-suggests/g' \ 
+    -i $MININET_INSTALLER \ 
+
+# Install script expects to find this. Easier than patching that part of the script. 
+    && touch /.bashrc \ 
+
+# Proceed with the install. 
+    && chmod +x $MININET_INSTALLER \ 
+    && ./$MININET_INSTALLER -nfv \ 
+# Clean up source. 
+    && rm -rf /tmp/mininet \ 
+    /tmp/openflow
+
+# install sflowtool
+RUN git clone http://github.com/sflow/sflowtool \
+    && cd sflowtool \
+    && ./boot.sh \
+    && ./configure \
+    && make \
+    && make install
+
+# install D-ITG
+RUN wget http://traffic.comics.unina.it/software/ITG/codice/D-ITG-2.8.1-r1023-src.zip \
+    && unzip D-ITG-2.8.1-r1023-src.zip \
+    && cd D-ITG-2.8.1-r1023/src \
+    && make sctp=on dccp=on \
+    && make install PREFIX=/usr/local
 
 # Clone and install ML-net
-WORKDIR ~
+WORKDIR /root
 RUN git clone $MLNET_REPO
 
+# Create SSH keys
+RUN cat /dev/zero | ssh-keygen -q -N ""
+RUN cat /root/.ssh/id_rsa.pub >> /root/.ssh/authorized_keys
+RUN chmod 400 /root/.ssh/*
 
-# Create a start script to start OpenVSwitch
-COPY docker-entry-point /docker-entry-point
-RUN chmod 755 /docker-entry-point
-
-VOLUME ["/data"]
-WORKDIR /data
 
 # Default command.
-ENTRYPOINT ["/docker-entry-point"]
+ENTRYPOINT ["bash"]
